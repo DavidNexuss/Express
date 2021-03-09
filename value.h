@@ -15,6 +15,9 @@ struct Value : public vector<double>
     Value(const std::initializer_list<double>& l) : vector<double>(l) { }
     Value(const vector<double>& v) : vector<double>(v) { }
 
+    template <typename ... T>
+    Value(const T&& ... args) : vector<double>(args...) { }
+
     bool is_numeric() const { return size() == 1; }
 
     double& at(size_t i)
@@ -30,10 +33,7 @@ struct Value : public vector<double>
         else return c[i];
     }
 
-    double& operator[](const size_t i)
-    {
-        return at(i);
-    }
+    double& operator[](const size_t i) { return at(i); }
 
     bool is_string() const { return !str.empty(); }
 
@@ -61,6 +61,8 @@ MASTER_OPERATOR(-,-=)
 MASTER_OPERATOR(/,/=)
 MASTER_OPERATOR(*,*=)
 
+#undef MASTER_OPERATOR
+
 //Verbatim for ^ operator
 Value& operator ^= (Value& v,const Value& other)
 {
@@ -75,19 +77,19 @@ Value operator ^ (const Value& v,const Value& other)
     return result;
 }
 
-#undef MASTER_OPERATOR
+
 std::ostream& operator<<(std::ostream& os,const Value& v)
 {
     if (v.is_numeric()) os << v[0];
     else
     {
-        os << "{";
+        os << "(";
         for (size_t i = 0; i < v.size(); i++)
         {
             os << v[i];
             if (i < v.size() - 1) os << ", ";
         }
-        os << "}";
+        os << ")";
     }
     return os;
 }
@@ -95,19 +97,15 @@ std::ostream& operator<<(std::ostream& os,const Value& v)
 Value sum(const Value& v)
 {
     Value result = v[0];
-    for (size_t i = 1; i < v.size();i++)
-    {
-        result += v[i];
-    }
+    for (size_t i = 1; i < v.size();i++) result += v[i];
+
     return result;
 }
 
 Value prod(const Value& v)
 {
     Value result = v[0];
-    for (size_t i = 1; i < v.size();i++)
-    {
-        result *= v[i];
-    }
+    for (size_t i = 1; i < v.size();i++) result *= v[i];
+
     return result;
 }

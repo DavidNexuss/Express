@@ -30,6 +30,7 @@ namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
 
 %left  ';'
 %left  ','
+%left RETURN
 %right '='
 %left  '+' '-'
 %left  '*' '/'
@@ -37,8 +38,6 @@ namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
 %left  '('
 %left  '['
 %left  '{'
-%right  '}'
-%right  ')'
 
 
 %type<Value> NUMCONST STRINGCONST IDENTIFIER
@@ -47,9 +46,11 @@ namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
 %type<Variable*> variable
 %type<Assignment*> assignment
 %type<Vector*> vector
+%type<Vector*> vector-item
 %type<Operation*> operation
 %type<ReturnExpression*> return-block
 %type<ExpressionBlock*> expression-block
+%type<ExpressionBlock*> expression-item
 %type<Function*> function
 %type<FunctionCall*> function-call
 
@@ -57,9 +58,12 @@ namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
 
 library: expression {Scope::scope->set_root_expression($1); }
 
-expression-block: '{' {$$ = new ExpressionBlock(); }
-                |  expression-block ';' expression { $$ = $1; $$->add_expression($3); }
-                |  expression-block '}' {$$ = $1; }
+expression-item: expression {$$ = new ExpressionBlock(); $$->add_expression($1); }
+               | expression-item ';' expression {$$ = $1; $$->add_expression($3); }
+
+expression-block: '{' expression-item ';' '}' {$$ = $2; }
+                | '{' expression-item '}' {$$ = $2; }
+                | '{' '}' {$$ = new ExpressionBlock(); } 
 
 return-block: RETURN expression {$$ = new ReturnExpression($2); }
 
@@ -68,16 +72,17 @@ expression: expression-block { $$ = $1;}
           | assignment       { $$ = $1;}
           | function         { $$ = $1;}  
           | lvalue           { $$ = $1;}
-          | variable       { $$ = $1;}
+          | variable         { $$ = $1;}
           | function-call    { $$ = $1;}
           | operation        { $$ = $1;}
           | vector           { $$ = $1;}
-//          | IDENTIFIER '[' expression ']'
-
-assignment: variable '=' expression {$$ = new Assignment($1,$3); }
 
 lvalue: NUMCONST        {$$ = new Constant($1); }
       | STRINGCONST     {$$ = new Constant($1); }
+
+variable: IDENTIFIER {$$ = new Variable($1); }
+
+assignment: variable '=' expression {$$ = new Assignment($1,$3); }
 
 function: vector expression-block {$$ = new Function($1,$2); }
 
@@ -90,11 +95,11 @@ operation: expression '+' expression {$$ = new Operation($1,$3,op_sum); }
          | expression '^' expression {$$ = new Operation($1,$3,op_exp); }
          | expression '[' expression ']' {$$ = new Operation($1,$3,op_ref); }
 
-vector: '(' {$$ = new Vector(); }
-      | vector ',' expression {$$ = $1; $$->add_expression($3); } 
-      | vector ')' {$$ = $1; }
+vector-item: expression {$$ = new Vector(); $$->add_expression($1); }
+           | vector-item ',' expression {$$ = $1; $$->add_expression($3); }
 
-variable: IDENTIFIER {$$ = new Variable($1); }
+vector: '(' vector-item ')' {$$ = $2;}
+      | '(' ')' {$$ = new Vector();}
 
 %%
 
@@ -167,5 +172,7 @@ int main(int argc, char** argv)
 
     yy::conj_parser parser(ctx);
     parser.parse();
+    string prefix;
+    debug_print_expression(scope.rootExpression,prefix);
     cout << scope.evaluate() << endl;
 }

@@ -4,9 +4,9 @@ build:
 	mkdir -p build
 
 expr: build/expr.cc
-	g++ $^ -std=c++17 -I . -o $@
+	g++ -g $^ -std=c++17 -I . -o $@
 build/expr.cc.re: expr.y
-	bison $^ -o $@
+	bison -Wcounterexamples $^ -o $@
 build/expr.cc: build/expr.cc.re
 	re2c $^ -o $@
 

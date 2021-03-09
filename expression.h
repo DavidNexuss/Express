@@ -5,24 +5,62 @@
 #include <list>
 #include <cassert>
 
-enum ExpressionType
-{
-    ex_Constant = 0,
-    ex_Variable,
-    ex_Assignment,
-    ex_Vector,
-    ex_Operation, 
-    ex_ReturnExpression,
-    ex_ExpressionBlock,
-    ex_Function,
-    ex_FunctionCall
-};
+#define DEBUG
+
+#define ExpressionType_d(o) \
+    o(ex_Constant) \
+    o(ex_Variable) \
+    o(ex_Assignment) \
+    o(ex_Vector) \
+    o(ex_Operation) \
+    o(ex_ReturnExpression) \
+    o(ex_ExpressionBlock) \
+    o(ex_Function) \
+    o(ex_FunctionCall)
+
+#define o(n) n,
+enum ExpressionType { ExpressionType_d(o) };
+#undef o
+
+#define o(n) #n, 
+const char* ExpressionType_literals[] = { ExpressionType_d(o) };
+#undef o
+
 
 struct Expression
 {
-    ExpressionType type;
     virtual Value evaluate() = 0;
+    
+    #ifdef DEBUG
+    list<Expression*> dependencies;
+    #endif
+
+    void setType(ExpressionType _type){ type = _type; }
+    ExpressionType getType() const {return type; }
+    private:
+    ExpressionType type;
+
 };
+
+#ifdef DEBUG
+
+#define dependency(x) dependencies.push_back(x)
+void debug_print_expression(Expression* root,std::string& prefix)
+{
+    for(Expression* c : root->dependencies)
+    {
+        cerr << prefix << "--" << ExpressionType_literals[c->getType()] << endl;
+        if (c->dependencies.size() > 0)
+        {
+            string newprefix = prefix + "\t";
+            debug_print_expression(c,newprefix);
+        }
+    }
+}
+#else
+void debug_print_expression(Expression* root,std::string& prefix) { }
+#define dependency(x) 
+#endif
 
 struct Scope
 {
@@ -45,13 +83,27 @@ struct Scope
         variableStack[currentScope].clear();
     }
 
-    void operator --()
-    {
-        currentScope--;
-    }
+    void operator --() { currentScope--; }
 
-    Expression* resolve(const string& name) { return variableStack[currentScope][name]; }
-    Expression* define(const string& name,Expression* expression) { return variableStack[currentScope][name] = expression; }
+    Expression* resolve(const string& name) 
+    { 
+        int i = currentScope;
+        while(i >= 0)
+        {
+            auto it = variableStack[i].find(name);
+            if (it != variableStack[i].end()) return it->second;
+            i--;
+        }
+        
+        cerr << "Variable " << name << " not found in any scope" << endl;
+        throw std::runtime_error("Variable not found");
+    }
+    Expression* define(const string& name,Expression* expression) 
+    { 
+        #ifdef DEBUG
+        cerr << "Scope: " << currentScope << " : Variable definition " << name << " as " << ExpressionType_literals[expression->getType()] << endl;
+        #endif
+        return variableStack[currentScope][name] = expression; }
 
     void set_root_expression(Expression* expression) { rootExpression = expression; }
 
@@ -63,7 +115,7 @@ struct Constant : public Expression
 {
     Value v;
 
-    Constant() { type = ex_Constant; }
+    Constant() { setType(ex_Constant); }
     Constant(const Value& _v) : v(_v) { Constant();}
 
     template <typename ... T>
@@ -75,11 +127,10 @@ struct Variable : public Expression
 {
     string name;
 
-    Variable() { type = ex_Variable; }
+    Variable() { setType(ex_Variable); }
     Variable(const string& _name) : name(_name) { Variable(); }
 
     Expression* get() { return Scope::scope->resolve(name); }
-
     virtual Value evaluate() override { return get()->evaluate(); } 
 
 };
@@ -88,12 +139,16 @@ struct Assignment : public Expression
     Variable* identifier;
     Expression* assignment;
 
-    Assignment() { type = ex_Assignment; }
+    Assignment() 
+    { 
+        setType(ex_Assignment); 
+        dependency(identifier);
+        dependency(assignment);
+    }
     Assignment(Variable* _identifier, Expression* _assignment) : identifier(_identifier), assignment(_assignment) { Assignment(); }
 
     virtual Value evaluate() override { 
         Expression* expr = Scope::scope->define(identifier->name,assignment); 
-        if (expr->type == ex_Function) return 0;
         return expr->evaluate();
     }
 };
@@ -102,7 +157,8 @@ struct Vector : public Expression
 {
     vector<Expression*> variables;
 
-    Vector() { type = ex_Vector; }
+    Vector() { setType(ex_Vector);  }
+
     virtual Value evaluate() override
     {
         vector<double> values(variables.size());
@@ -113,14 +169,15 @@ struct Vector : public Expression
         return Value(values);
     }
 
-    Expression* at(size_t index)
-    {
-        return variables[index];
-    }
+    inline Expression* at(size_t index) { return variables[index]; }
 
     inline size_t size() const { return variables.size(); }
 
-    inline void add_expression(Expression* expression) { variables.emplace_back(expression); } 
+    inline void add_expression(Expression* expression)
+    { 
+        variables.emplace_back(expression); 
+        dependency(expression);
+    } 
 };
 
 enum OperationType
@@ -140,14 +197,16 @@ struct Operation : public Expression
     OperationType op_type;
     Operation(Expression *_a,Expression *_b,OperationType _op_type) : a(_a), b(_b),op_type(_op_type) 
     {
-        type = ex_Operation;
+        setType(ex_Operation);
+        dependency(a);
+        dependency(b);
     }
 
     virtual Value evaluate() override 
     { 
 
         #define case_operation(type,operatort) case type: return a->evaluate() operatort b->evaluate();
-        switch(type)
+        switch(op_type)
         {
             case_operation(op_sum,+);
             case_operation(op_sub,-);
@@ -168,7 +227,8 @@ struct ReturnExpression : public Expression
     Expression* returnValue;
     ReturnExpression(Expression* _returnValue) : returnValue(_returnValue) 
     {
-        type = ex_ReturnExpression;
+        setType(ex_ReturnExpression);
+        dependency(returnValue);
     }
 
     virtual Value evaluate() override { return returnValue->evaluate(); }
@@ -177,60 +237,74 @@ struct ReturnExpression : public Expression
 struct ExpressionBlock : public Expression
 {
     vector<Expression*> expressions;
+    Vector *parameterVector, *valueVector;
+    bool expectsParameters = false;
 
-    ExpressionBlock()
-    {
-        type = ex_ExpressionBlock;
-    }
+    ExpressionBlock() { setType(ex_ExpressionBlock); }
     ExpressionBlock(const vector<Expression*>& _expressions) : expressions(_expressions) 
     { 
         ExpressionBlock();
     }
 
-    virtual void initialize_body() { }
+    void set_variable_vectors(Vector* _parameterVector,Vector* _valueVector)
+    {
+        parameterVector = _parameterVector;
+        valueVector = _valueVector;
+    }
+    void initialize_body()
+    {
+        assert(parameterVector);
+        assert(valueVector);
+        assert(parameterVector->size() == valueVector->size());
+        int m = parameterVector->size();
+        for(int i = 0; i < m; i++)
+        {
+            Scope::scope->define(static_cast<Variable*>(parameterVector->at(i))->name,valueVector->at(i));
+        }
+    }
     virtual Value evaluate() override
     {
         ++(*Scope::scope);      //Increase and decrease scope
-        initialize_body();
+        if (expectsParameters) initialize_body();
         Value v;
         for(int i = 0; i < expressions.size(); i++)
         {
             Expression* current = expressions[i];
             v = current->evaluate();
-            if (current->type == ex_ReturnExpression) break;
+            if (getType() == ex_ReturnExpression) break;
         }
         --(*Scope::scope);
+        parameterVector = nullptr;
+        valueVector = nullptr;
         return v;
     }
 
     void add_expression(Expression* expression)
     {
         expressions.emplace_back(expression);
+        dependency(expression);
     }
 };
 
-struct Function : public ExpressionBlock
+struct Function : public Expression
 {
     Vector* parameterVector;
-    Vector* valueVector;
+    ExpressionBlock* expressionBlock;
 
-    Function(Vector* _parameterVector,const vector<Expression*>& _expressions) : ExpressionBlock(_expressions), parameterVector(_parameterVector) 
+    Function(Vector* _parameterVector,ExpressionBlock* _expressionBlock) : parameterVector(_parameterVector), expressionBlock(_expressionBlock)
     { 
-        type = ex_Function;
-    } 
-    Function(Vector* _parameterVector,ExpressionBlock* expression_block)
-    {
-        Function(_parameterVector,expression_block->expressions);
-        delete expression_block;
+        setType(ex_Function);
+        dependency(parameterVector);
+        dependency(expressionBlock);
+
+        expressionBlock->expectsParameters = true;
     }
-    virtual void initialize_body()
+
+    virtual Value evaluate() override { return 0; }
+    Value evaluate(Vector* valueVector)
     {
-        assert(parameterVector->size() == valueVector->size());
-        int m = parameterVector->size();
-        for(int i = 0; i < m; i++)
-        {
-            Scope::scope->define(parameterVector->at(i)->evaluate().as_string(),valueVector->at(i));
-        }
+        expressionBlock->set_variable_vectors(parameterVector,valueVector);
+        return expressionBlock->evaluate();
     }
 };
 
@@ -241,17 +315,18 @@ struct FunctionCall : public Expression
 
     FunctionCall()
     {
-        type = ex_FunctionCall;
+        setType(ex_FunctionCall);
     }
 
     FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
     {
         FunctionCall();
+        dependency(functionIdentifier);
+        dependency(valueVector);
     }
     virtual Value evaluate()
     {
         Function* function = static_cast<Function*>(functionIdentifier->get());
-        function->valueVector = valueVector;
-        return function->evaluate();
+        return function->evaluate(valueVector);
     }
 };
