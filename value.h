@@ -38,6 +38,8 @@ struct Value : public vector<double>
     bool is_string() const { return !str.empty(); }
 
     string as_string() const { return str; }
+
+    operator string() const { return str; }
 };
 
 #define MASTER_OPERATOR(op,op2) \

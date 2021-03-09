@@ -1,23 +1,36 @@
-#include "value.h"
+#pragma once
+#include <value.h>
 #include <map>
 #include <stack>
 #include <list>
 #include <cassert>
 
-struct Expression;
+enum ExpressionType
+{
+    ex_Constant = 0,
+    ex_Variable,
+    ex_Assignment,
+    ex_Vector,
+    ex_Operation, 
+    ex_ReturnExpression,
+    ex_ExpressionBlock,
+    ex_Function,
+    ex_FunctionCall
+};
+
+struct Expression
+{
+    ExpressionType type;
+    virtual Value evaluate() = 0;
+};
 
 struct Scope
 {
 
-    static Scope* ctx;
+    static Scope* scope;
     
-    static void initialize_ctx(Scope* _ctx)
-    {
-        ctx = _ctx;
-    }
-    //Lexer related
-    
-    //Interpreter related
+    static void initialize_scope(Scope* _scope) { scope = _scope; }
+
     Expression* rootExpression;
     vector<map<string,Expression*>> variableStack;
     int currentScope = 0;
@@ -41,26 +54,10 @@ struct Scope
     Expression* define(const string& name,Expression* expression) { return variableStack[currentScope][name] = expression; }
 
     void set_root_expression(Expression* expression) { rootExpression = expression; }
-};
 
-enum ExpressionType
-{
-    ex_Constant = 0,
-    ex_Variable,
-    ex_Assignment,
-    ex_Vector,
-    ex_Operation, 
-    ex_ReturnExpression,
-    ex_ExpressionBlock,
-    ex_Function,
-    ex_FunctionCall
+    Value evaluate() { return rootExpression->evaluate(); }
 };
-
-struct Expression
-{
-    ExpressionType type;
-    virtual Value evaluate() = 0;
-};
+Scope* Scope::scope = nullptr;
 
 struct Constant : public Expression
 {
@@ -81,7 +78,7 @@ struct Variable : public Expression
     Variable() { type = ex_Variable; }
     Variable(const string& _name) : name(_name) { Variable(); }
 
-    Expression* get() { return Scope::ctx->resolve(name); }
+    Expression* get() { return Scope::scope->resolve(name); }
 
     virtual Value evaluate() override { return get()->evaluate(); } 
 
@@ -95,7 +92,7 @@ struct Assignment : public Expression
     Assignment(Variable* _identifier, Expression* _assignment) : identifier(_identifier), assignment(_assignment) { Assignment(); }
 
     virtual Value evaluate() override { 
-        Expression* expr = Scope::ctx->define(identifier->name,assignment); 
+        Expression* expr = Scope::scope->define(identifier->name,assignment); 
         if (expr->type == ex_Function) return 0;
         return expr->evaluate();
     }
@@ -193,7 +190,7 @@ struct ExpressionBlock : public Expression
     virtual void initialize_body() { }
     virtual Value evaluate() override
     {
-        ++(*Scope::ctx);      //Increase and decrease scope
+        ++(*Scope::scope);      //Increase and decrease scope
         initialize_body();
         Value v;
         for(int i = 0; i < expressions.size(); i++)
@@ -202,7 +199,7 @@ struct ExpressionBlock : public Expression
             v = current->evaluate();
             if (current->type == ex_ReturnExpression) break;
         }
-        --(*Scope::ctx);
+        --(*Scope::scope);
         return v;
     }
 
@@ -232,7 +229,7 @@ struct Function : public ExpressionBlock
         int m = parameterVector->size();
         for(int i = 0; i < m; i++)
         {
-            Scope::ctx->define(parameterVector->at(i)->evaluate().as_string(),valueVector->at(i));
+            Scope::scope->define(parameterVector->at(i)->evaluate().as_string(),valueVector->at(i));
         }
     }
 };

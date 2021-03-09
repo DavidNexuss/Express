@@ -1,11 +1,14 @@
-expr: expr.cc
-	g++ expr.cc -std=c++17 -o expr
+all: build expr
 
-expr.cc.re: expr.y
-	bison expr.y -o expr.cc.re
-expr.cc: expr.cc.re
-	re2c expr.cc.re -o expr.cc
+build:
+	mkdir -p build
 
+expr: build/expr.cc
+	g++ $^ -std=c++17 -I . -o $@
+build/expr.cc.re: expr.y
+	bison $^ -o $@
+build/expr.cc: build/expr.cc.re
+	re2c $^ -o $@
 
 clean:
-	rm expr.cc.re expr.cc
+	rm -rf build
