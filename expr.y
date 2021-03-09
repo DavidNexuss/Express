@@ -20,6 +20,7 @@ struct lexcontext;
 struct lexcontext
 {
     const char* cursor;
+    const char* marker;
     yy::location loc;
 };
 namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
@@ -113,6 +114,7 @@ yy::conj_parser::symbol_type yy::yylex(lexcontext &ctx)
         re2c:yyfill:enable   = 0;
         re2c:define:YYCTYPE  = "char";
         re2c:define:YYCURSOR = "ctx.cursor";
+        re2c:define:YYMARKER = "ctx.marker";
         
         // Keywords:
         "return"                { return s(conj_parser::make_RETURN); }
@@ -126,8 +128,9 @@ yy::conj_parser::symbol_type yy::yylex(lexcontext &ctx)
         
         // String and integer literals:
         "\"" [^"]* "\""         { return s(conj_parser::make_STRINGCONST, std::string(anchor+1, ctx.cursor-1)); }
-        [0-9]+                  { return s(conj_parser::make_NUMCONST, std::stol(std::string(anchor,ctx.cursor))); }
-        
+        [0-9]+                  { return s(conj_parser::make_NUMCONST, std::stol(std::string(anchor,ctx.cursor))); } 
+        [0-9]*"."[0-9]+         { return s(conj_parser::make_NUMCONST, std::stod(std::string(anchor,ctx.cursor))); } 
+        [0-9]+"."[0-9]*         { return s(conj_parser::make_NUMCONST, std::stod(std::string(anchor,ctx.cursor))); } 
         // Whitespace and comments:
         "\000"                  { return s(conj_parser::make_END); }
         "\r\n" | [\r\n]         { ctx.loc.lines();   return yylex(ctx); }
