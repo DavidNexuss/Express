@@ -49,24 +49,9 @@ struct Expression
 };
 
 #ifdef DEBUG
-
 #define dependency(x) dependencies.push_back(x)
-void debug_print_expression(Expression* root,std::string& prefix)
-{
-    for(Expression* c : root->dependencies)
-    {
-        cerr << prefix << "--" << literalType(c) << endl;
-        if (c->dependencies.size() > 0)
-        {
-            string newprefix = prefix + "\t";
-            debug_print_expression(c,newprefix);
-        }
-    }
-}
-#else
-void debug_print_expression(Expression* root,std::string& prefix) { }
-#define dependency(x) 
 #endif
+
 
 struct Scope
 {
@@ -333,6 +318,40 @@ struct FunctionCall : public Expression
         return function->evaluate(valueVector);
     }
 };
+
+#ifdef DEBUG
+void debug_print_expression(Expression* root,const std::string& prefix)
+{
+    auto& dependencies = root->dependencies;
+    for(auto it = dependencies.begin(); it != dependencies.end(); ++it)
+    {
+        Expression *c = *it;
+        auto it2 = it; ++it2;
+
+        cerr << prefix << (it2 != dependencies.end() ? "\u251c\u2500" : "\u2514\u2500") << "> " << literalType(c) << " ";
+        switch(c->getType())
+        {
+            case ex_Constant:
+            cerr << ((Constant*)c)->v;
+            break;
+            case ex_Variable:
+            cerr << ((Variable*)c)->name;
+        }
+        cerr << endl;
+        if (c->dependencies.size() > 0)
+        {
+            string newprefix;
+            if (it2 != dependencies.end()) newprefix = prefix + "\u2502 \t";
+            else newprefix = prefix + " \t";
+            debug_print_expression(c,newprefix);
+        }
+    }
+}
+#else
+void debug_print_expression(Expression* root,std::string& prefix) { }
+#define dependency(x) 
+#endif
+
 void latexize(Expression* expression)
 {
 
