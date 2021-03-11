@@ -76,16 +76,23 @@ struct Vector : public Expression
     } 
 };
 
-enum OperationType
-{
-    op_sum = 0,
-    op_sub,
-    op_mul,
-    op_div,
-    op_exp,
-    op_ref
-};
+#define OPERATION_TYPE_ENUM(o) \
+    o(op_sum) \
+    o(op_sub) \
+    o(op_mul) \
+    o(op_div) \
+    o(op_exp) \
+    o(op_ref)
 
+#define o(n) n,
+enum OperationType { OPERATION_TYPE_ENUM(o) };
+#undef o
+
+#define o(n) #n,
+static const char* OperationTypeLiterals[] = { OPERATION_TYPE_ENUM(o) };
+#undef o
+
+#define operationLiteral(e) ( OperationTypeLiterals[(static_cast<Operation*>(e))->op_type] )
 
 struct Operation : public Expression
 {

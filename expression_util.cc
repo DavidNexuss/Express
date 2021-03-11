@@ -4,7 +4,7 @@
 
 void latexize(Expression* expression)
 {
-    
+
 }
 void debug_print_expression(Expression* root,const std::string& prefix)
 {
@@ -22,6 +22,10 @@ void debug_print_expression(Expression* root,const std::string& prefix)
             break;
             case ex_Variable:
             cerr << ((Variable*)c)->name;
+            break;
+            case ex_Operation:
+            cerr << operationLiteral(c);
+            break;
         }
         cerr << endl;
         if (c->dependencies.size() > 0)
