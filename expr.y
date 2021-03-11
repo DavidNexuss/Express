@@ -89,11 +89,11 @@ function: vector expression-block {$$ = new Function($1,$2); }
 
 function-call: variable vector    {$$ = new FunctionCall($1,$2); }
 
-operation: expression '+' expression {$$ = new Operation($1,$3,op_sum); }
-         | expression '-' expression {$$ = new Operation($1,$3,op_sub); }
-         | expression '*' expression {$$ = new Operation($1,$3,op_mul); }
-         | expression '/' expression {$$ = new Operation($1,$3,op_div); }
-         | expression '^' expression {$$ = new Operation($1,$3,op_exp); }
+operation: expression '+' expression     {$$ = new Operation($1,$3,op_sum); }
+         | expression '-' expression     {$$ = new Operation($1,$3,op_sub); }
+         | expression '*' expression     {$$ = new Operation($1,$3,op_mul); }
+         | expression '/' expression     {$$ = new Operation($1,$3,op_div); }
+         | expression '^' expression     {$$ = new Operation($1,$3,op_exp); }
          | expression '[' expression ']' {$$ = new Operation($1,$3,op_ref); }
 
 vector-item: expression {$$ = new Vector(); $$->add_expression($1); }

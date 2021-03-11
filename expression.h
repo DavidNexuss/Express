@@ -26,19 +26,33 @@ enum ExpressionType { ExpressionType_d(o) };
 const char* ExpressionType_literals[] = { ExpressionType_d(o) };
 #undef o
 
+#define literalType(e) ExpressionType_literals[e->getType()]
 
 struct Expression
 {
     virtual Value evaluate() = 0;
-    
-    #ifdef DEBUG
-    list<Expression*> dependencies;
-    #endif
 
-    void setType(ExpressionType _type){ type = _type; }
+    Expression()
+    {
+        cerr << "Expression created " << this << endl;
+    }
+
+    Expression(const Expression& other) = delete;
+    void setType(ExpressionType _type)
+    { 
+        type = _type; 
+        cerr << "Set type " << literalType(this) << endl;
+    }
     ExpressionType getType() const {return type; }
+
     private:
     ExpressionType type;
+
+
+    #ifdef DEBUG
+    public:
+    list<Expression*> dependencies;
+    #endif
 
 };
 
@@ -49,7 +63,7 @@ void debug_print_expression(Expression* root,std::string& prefix)
 {
     for(Expression* c : root->dependencies)
     {
-        cerr << prefix << "--" << ExpressionType_literals[c->getType()] << endl;
+        cerr << prefix << "--" << literalType(c) << endl;
         if (c->dependencies.size() > 0)
         {
             string newprefix = prefix + "\t";
@@ -101,7 +115,7 @@ struct Scope
     Expression* define(const string& name,Expression* expression) 
     { 
         #ifdef DEBUG
-        cerr << "Scope: " << currentScope << " : Variable definition " << name << " as " << ExpressionType_literals[expression->getType()] << endl;
+        cerr << "Scope: " << currentScope << " : Variable definition " << name << " as " << literalType(expression) << endl;
         #endif
         return variableStack[currentScope][name] = expression; }
 
@@ -110,6 +124,7 @@ struct Scope
     Value evaluate() { return rootExpression->evaluate(); }
 };
 Scope* Scope::scope = nullptr;
+void latexize(Expression* expression);
 
 struct Constant : public Expression
 {
@@ -270,6 +285,7 @@ struct ExpressionBlock : public Expression
         for(int i = 0; i < expressions.size(); i++)
         {
             Expression* current = expressions[i];
+            latexize(current);
             v = current->evaluate();
             if (getType() == ex_ReturnExpression) break;
         }
@@ -283,6 +299,7 @@ struct ExpressionBlock : public Expression
     {
         expressions.emplace_back(expression);
         dependency(expression);
+        cerr << "Adding expression " << literalType(expression) << endl;
     }
 };
 
@@ -330,3 +347,15 @@ struct FunctionCall : public Expression
         return function->evaluate(valueVector);
     }
 };
+void latexize(Expression* expression)
+{
+    cerr << "Ltexize: " << literalType(expression) << endl;
+    switch (expression->getType())
+    {
+        case ex_Assignment:
+            Assignment* assignment = (Assignment*)expression;
+            cerr << assignment->identifier->name << " = ";
+            latexize(assignment->assignment);
+            break;
+    }
+}
