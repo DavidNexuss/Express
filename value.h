@@ -43,13 +43,13 @@ struct Value : public vector<double>
 };
 
 #define MASTER_OPERATOR(op,op2) \
-Value& operator op2 (Value& v,const Value& other) \
+inline Value& operator op2 (Value& v,const Value& other) \
 { \
     if (v.is_numeric()) v.resize(other.size(),v[0]); \
     for (size_t i = 0; i < v.size(); ++i) v[i] op2 other[i]; \
     return v; \
 } \
-Value operator op (const Value& v,const Value& other) \
+inline Value operator op (const Value& v,const Value& other) \
 { \
     Value result = v; \
     result op2 other; \
@@ -64,13 +64,13 @@ MASTER_OPERATOR(*,*=)
 #undef MASTER_OPERATOR
 
 //Verbatim for ^ operator
-Value& operator ^= (Value& v,const Value& other)
+inline Value& operator ^= (Value& v,const Value& other)
 {
     if (v.is_numeric()) v.resize(other.size(),v[0]);
     for (size_t i = 0; i < v.size(); ++i) v[i] = pow(v[i],other[i]);
     return v;
 }
-Value operator ^ (const Value& v,const Value& other)
+inline Value operator ^ (const Value& v,const Value& other)
 {
     Value result = v;
     result ^= other;
@@ -78,7 +78,7 @@ Value operator ^ (const Value& v,const Value& other)
 }
 
 
-std::ostream& operator<<(std::ostream& os,const Value& v)
+inline std::ostream& operator<<(std::ostream& os,const Value& v)
 {
     if (v.is_numeric()) os << v[0];
     else
@@ -94,7 +94,7 @@ std::ostream& operator<<(std::ostream& os,const Value& v)
     return os;
 }
 
-Value sum(const Value& v)
+inline Value sum(const Value& v)
 {
     Value result = v[0];
     for (size_t i = 1; i < v.size();i++) result += v[i];
@@ -102,7 +102,7 @@ Value sum(const Value& v)
     return result;
 }
 
-Value prod(const Value& v)
+inline Value prod(const Value& v)
 {
     Value result = v[0];
     for (size_t i = 1; i < v.size();i++) result *= v[i];
