@@ -1,3 +1,8 @@
 {
-    a = 23.02
+    derivate = (f,x) { 
+        delta = 0.0001; 
+        return ( f(x + delta / 2) - f(x - delta / 2) ) / delta 
+    };
+
+    derivate((z){ z * z + z * 2 },2)
 }
