@@ -17,6 +17,7 @@
     o(ex_ReturnExpression) \
     o(ex_ExpressionBlock) \
     o(ex_Function) \
+    o(ex_InternalFunction) \
     o(ex_FunctionCall)
 
 #define o(n) n,

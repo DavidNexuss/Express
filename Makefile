@@ -9,7 +9,7 @@ build/%.o : %.cc
 build/expr.o: build/expr.cc
 	g++ -g $^ -std=c++17 -I . -c -o $@
 
-expr: build/expr.o build/expression_util.o build/scope.o
+expr: build/expr.o build/expression_util.o build/scope.o build/register_types.o
 	g++ -g $^ -std=c++17 -I . -o $@
 
 build/expr.cc: build/expr.cc.re

@@ -11,6 +11,7 @@
 #include <value.h>
 #include <expression.h>
 #include <expression_types.h>
+#include <register_types.h>
 struct lexcontext;
 } //%code requires
 
@@ -175,6 +176,7 @@ int main(int argc, char** argv)
 
     Scope scope;
     Scope::initialize_scope(&scope);
+    registerInternalFunctions();
 
     yy::conj_parser parser(ctx);
     parser.parse();

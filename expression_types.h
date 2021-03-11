@@ -116,12 +116,12 @@ struct Vector : public Expression
 
     virtual Value evaluate() override
     {
-        vector<double> values(variables.size());
-        for (size_t i = 0; i < variables.size(); i++)
+        Value values = variables[0]->evaluate()[0];
+        for (size_t i = 1; i < variables.size(); i++)
         {
-            values[i] = variables[i]->evaluate()[0];
+            values.push_back(variables[i]->evaluate()[0]);
         }
-        return Value(values);
+        return values;
     }
 
     inline Expression* at(size_t index) { return variables[index]; }
@@ -295,17 +295,22 @@ struct Function : public Expression
     Vector* parameterVector;
     ExpressionBlock* expressionBlock;
 
+    Function()
+    {
+        setType(ex_Function);
+    }
     Function(Vector* _parameterVector,ExpressionBlock* _expressionBlock) : parameterVector(_parameterVector), expressionBlock(_expressionBlock)
     { 
         setType(ex_Function);
+
         dependency(parameterVector);
         dependency(expressionBlock);
-
         expressionBlock->expectsParameters = true;
     }
 
     virtual Value evaluate() override { return 0; }
-    Value evaluate(Vector* valueVector)
+
+    virtual Value evaluate(Vector* valueVector)
     {
         expressionBlock->set_variable_vectors(parameterVector,valueVector);
         return expressionBlock->evaluate();
@@ -318,6 +323,41 @@ struct Function : public Expression
         expressionBlock->print(str);
     }
 };
+
+struct InternalFunction : public Function
+{
+    using internalFunction = double (*) (double);
+
+    std::string name;
+    internalFunction functionPtr;
+
+    InternalFunction(const std::string& _name,internalFunction _functionPtr) : name(_name)
+    {
+        functionPtr = _functionPtr;
+        setType(ex_InternalFunction);
+    }
+    virtual Value evaluate() override { return 0; }
+
+    virtual Value evaluate(Vector* valueVector) override
+    {
+        Value oldvalue = valueVector->at(0)->evaluate();
+        Value result = oldvalue;
+
+        for(int i = 0 ; i < oldvalue.size(); ++i)
+        {
+            result[i] = functionPtr(oldvalue[i]);
+        }
+        return result;
+    }
+
+
+    static void registerInternalFunction(const std::string& name, internalFunction functionPtr)
+    {
+        Scope::scope->define(name,new InternalFunction(name,functionPtr));
+    }
+};
+
+#define registerInternalFunction(x) InternalFunction::registerInternalFunction(#x,x);
 
 struct FunctionCall : public Expression
 {
