@@ -4,7 +4,6 @@
 
 void latexize(Expression* expression)
 {
-
 }
 void debug_print_expression(Expression* root,const std::string& prefix)
 {
@@ -14,7 +13,7 @@ void debug_print_expression(Expression* root,const std::string& prefix)
         Expression *c = *it;
         auto it2 = it; ++it2;
 
-        cerr << prefix << (it2 != dependencies.end() ? "\u251c\u2500" : "\u2514\u2500") << "> " << literalType(c) << " ";
+        cerr << prefix << (it2 != dependencies.end() ? "\u251c\u2500" : "\u2514\u2500") << "> " << literalType(c) << " " << c->is_final() << " ";
         switch(c->getType())
         {
             case ex_Constant:

@@ -178,4 +178,5 @@ int main(int argc, char** argv)
     string prefix;
     debug_print_expression(scope.rootExpression,prefix);
     cout << scope.evaluate() << endl;
+    scope.rootExpression->print(cout);
 }

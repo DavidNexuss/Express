@@ -37,6 +37,21 @@ struct Expression
     ExpressionType getType() const {return type; }
 
     virtual Value evaluate() = 0;
+
+    bool is_final() const 
+    {
+        for(Expression* expr: dependencies) if (!expr->is_final()) return false;
+
+        switch  (type)
+        {
+            case ex_Assignment:
+            return false;
+            default: 
+            return true;
+        }
+    }
+
+    virtual void print(std::ostream & os) { }
     private:
     ExpressionType type;
 
