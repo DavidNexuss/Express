@@ -30,21 +30,13 @@ const char* ExpressionType_literals[] = { ExpressionType_d(o) };
 
 struct Expression
 {
-    virtual Value evaluate() = 0;
-
-    Expression()
-    {
-        cerr << "Expression created " << this << endl;
-    }
-
+    Expression() { }
     Expression(const Expression& other) = delete;
-    void setType(ExpressionType _type)
-    { 
-        type = _type; 
-        cerr << "Set type " << literalType(this) << endl;
-    }
+    
+    void setType(ExpressionType _type) {  type = _type;  }
     ExpressionType getType() const {return type; }
 
+    virtual Value evaluate() = 0;
     private:
     ExpressionType type;
 
@@ -130,11 +122,11 @@ struct Constant : public Expression
 {
     Value v;
 
-    Constant() { setType(ex_Constant); }
-    Constant(const Value& _v) : v(_v) { Constant();}
-
-    template <typename ... T>
-    Constant(const T& ... args) : v(args...) { Constant();}
+    Constant(const Value& _v)
+    {
+        setType(ex_Constant);
+        v = _v;
+    }
 
     virtual Value evaluate() override { return v; }
 };
@@ -142,8 +134,11 @@ struct Variable : public Expression
 {
     string name;
 
-    Variable() { setType(ex_Variable); }
-    Variable(const string& _name) : name(_name) { Variable(); }
+    Variable(const string& _name)
+    { 
+        setType(ex_Variable);
+        name = _name; 
+    }
 
     Expression* get() { return Scope::scope->resolve(name); }
     virtual Value evaluate() override { return get()->evaluate(); } 
@@ -154,13 +149,14 @@ struct Assignment : public Expression
     Variable* identifier;
     Expression* assignment;
 
-    Assignment() 
-    { 
+    Assignment(Variable* _identifier, Expression* _assignment)
+    {
         setType(ex_Assignment); 
+        identifier = _identifier; 
+        assignment = _assignment;
         dependency(identifier);
         dependency(assignment);
     }
-    Assignment(Variable* _identifier, Expression* _assignment) : identifier(_identifier), assignment(_assignment) { Assignment(); }
 
     virtual Value evaluate() override { 
         Expression* expr = Scope::scope->define(identifier->name,assignment); 
@@ -256,10 +252,6 @@ struct ExpressionBlock : public Expression
     bool expectsParameters = false;
 
     ExpressionBlock() { setType(ex_ExpressionBlock); }
-    ExpressionBlock(const vector<Expression*>& _expressions) : expressions(_expressions) 
-    { 
-        ExpressionBlock();
-    }
 
     void set_variable_vectors(Vector* _parameterVector,Vector* _valueVector)
     {
@@ -299,7 +291,6 @@ struct ExpressionBlock : public Expression
     {
         expressions.emplace_back(expression);
         dependency(expression);
-        cerr << "Adding expression " << literalType(expression) << endl;
     }
 };
 
@@ -330,14 +321,9 @@ struct FunctionCall : public Expression
     Variable* functionIdentifier;
     Vector* valueVector;
 
-    FunctionCall()
-    {
-        setType(ex_FunctionCall);
-    }
-
     FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
     {
-        FunctionCall();
+        setType(ex_FunctionCall);
         dependency(functionIdentifier);
         dependency(valueVector);
     }
@@ -349,13 +335,5 @@ struct FunctionCall : public Expression
 };
 void latexize(Expression* expression)
 {
-    cerr << "Ltexize: " << literalType(expression) << endl;
-    switch (expression->getType())
-    {
-        case ex_Assignment:
-            Assignment* assignment = (Assignment*)expression;
-            cerr << assignment->identifier->name << " = ";
-            latexize(assignment->assignment);
-            break;
-    }
+
 }
