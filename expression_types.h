@@ -2,7 +2,7 @@
 #include <global.h>
 #include <expression.h>
 #include <expression_util.h>
-
+#include <sstream>
 struct Constant : public Expression
 {
     Value v;
@@ -14,9 +14,44 @@ struct Constant : public Expression
     }
 
     virtual Value evaluate() override { return v; }
-    virtual void print(std::ostream &os)
+    virtual void print(std::string &str)
     {
-        os << v;
+        str += v;
+    }
+};
+
+struct StringConstant : public Expression
+{
+    Value str;
+    Value finalStr;
+
+    StringConstant(const Value& _str)
+    {
+        setType(ex_StringConstant);
+        str = _str;
+    }
+
+    const std::string evalString()
+    {
+        std::stringstream ss(str);
+        std::string token;
+        std::string result = "";
+        while (ss >> token)
+        {
+            if (token[0] == '$')
+            {
+                token.erase(0,1);
+                Scope::scope->resolve(token)->print(result);
+            }
+            else
+            result += token + " ";
+        }
+        return result;
+    }
+    virtual Value evaluate() override { finalStr.str = evalString(); return finalStr; }
+    virtual void print(std::string &str)
+    {
+        str += finalStr;
     }
 };
 struct Variable : public Expression
@@ -32,9 +67,9 @@ struct Variable : public Expression
     Expression* get() { return Scope::scope->resolve(name); }
     virtual Value evaluate() override { return get()->evaluate(); } 
 
-    virtual void print(std::ostream & os)
+    virtual void print(std::string& str)
     {
-        os << name;
+        str += name;
     }
 };
 struct Assignment : public Expression 
@@ -56,18 +91,19 @@ struct Assignment : public Expression
         return expr->evaluate();
     }
 
-    virtual void print(std::ostream & os)
+    virtual void print(std::string& str)
     {
         if (assignment->getType() != ex_Function)
         {
-            identifier->print(os);
-            os << " = ";
-            assignment->print(os);
+
+            identifier->print(str);
+            str += " = ";
+            assignment->print(str);
         }
         else
         {
-            identifier->print(os);
-            assignment->print(os);
+            identifier->print(str);
+            assignment->print(str);
         }
     }
 };
@@ -97,15 +133,15 @@ struct Vector : public Expression
         variables.emplace_back(expression); 
         dependency(expression);
     }
-    virtual void print(std::ostream & os)
+    virtual void print(std::string &str)
     {
-        os << "(";
+        str += "(";
         for (size_t i = 0 ; i < variables.size(); i++)
         {
-            variables[i]->print(os);
-            if (i != variables.size() - 1) os << ",";
+            variables[i]->print(str);
+            if (i != variables.size() - 1) str += ",";
         }
-        os << ")";
+        str += ")";
     }
 };
 
@@ -157,25 +193,25 @@ struct Operation : public Expression
         throw new std::runtime_error("Invalid operation type");
     }
 
-    virtual void print(std::ostream & os)
+    virtual void print(std::string& str)
     {
-        if (op_type == op_div) os << "\\frac{";
-        a->print(os);
-        if (op_type == op_div) os << "}";
+        if (op_type == op_div) str += "\\frac{";
+        a->print(str);
+        if (op_type == op_div) str += "}";
         switch(op_type)
         {
-            case op_sum: os << " + "; break;
-            case op_sub: os << " - "; break;
-            case op_mul: os << " \\cdot "; break;
-            case op_exp: os << " ^ "; break;
-            case op_ref: os << "["; break;
+            case op_sum: str += " + "; break;
+            case op_sub: str += " - "; break;
+            case op_mul: str += " \\cdot "; break;
+            case op_exp: str += " ^ "; break;
+            case op_ref: str += "["; break;
         }
         
-        if (op_type == op_div) os << "{";
-        b->print(os);
-        if (op_type == op_div) os << "}";
+        if (op_type == op_div) str += "{";
+        b->print(str);
+        if (op_type == op_div) str += "}";
 
-        if (op_type == op_ref) os << "]";
+        if (op_type == op_ref) str += "]";
     }
 };
 
@@ -189,10 +225,10 @@ struct ReturnExpression : public Expression
     }
 
     virtual Value evaluate() override { return returnValue->evaluate(); }
-    virtual void print(std::ostream & os)
+    virtual void print(std::string & str)
     {
-        os << "return ";
-        returnValue->print(os);
+        str += "return ";
+        returnValue->print(str);
     }
 };
 
@@ -244,12 +280,12 @@ struct ExpressionBlock : public Expression
         dependency(expression);
     }
 
-    virtual void print(std::ostream & os)
+    virtual void print(std::string & str)
     {
         for(Expression* expression : expressions)
         {
-            expression->print(os);
-            if (expression != expressions.back())os << endl;
+            expression->print(str);
+            if (expression != expressions.back()) str += "\n";
         }
     }
 };
@@ -275,11 +311,11 @@ struct Function : public Expression
         return expressionBlock->evaluate();
     }
 
-    virtual void print(std::ostream & os)
+    virtual void print(std::string & str)
     {
-        parameterVector->print(os);
-        os << " = ";
-        expressionBlock->print(os);
+        parameterVector->print(str);
+        str += " = ";
+        expressionBlock->print(str);
     }
 };
 
@@ -299,9 +335,9 @@ struct FunctionCall : public Expression
         Function* function = static_cast<Function*>(functionIdentifier->get());
         return function->evaluate(valueVector);
     }
-    virtual void print(std::ostream & os)
+    virtual void print(std::string & str)
     {
-        functionIdentifier->print(os);
-        valueVector->print(os);
+        functionIdentifier->print(str);
+        valueVector->print(str);
     }
 };

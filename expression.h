@@ -9,6 +9,7 @@
 
 #define ExpressionType_d(o) \
     o(ex_Constant) \
+    o(ex_StringConstant) \
     o(ex_Variable) \
     o(ex_Assignment) \
     o(ex_Vector) \
@@ -51,7 +52,7 @@ struct Expression
         }
     }
 
-    virtual void print(std::ostream & os) { }
+    virtual void print(std::string& str) { }
     private:
     ExpressionType type;
 

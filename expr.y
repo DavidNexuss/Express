@@ -44,6 +44,7 @@ namespace yy { conj_parser::symbol_type yylex(lexcontext& ctx); }
 %type<Value> NUMCONST STRINGCONST IDENTIFIER
 %type<Expression*> expression
 %type<Constant*> lvalue
+%type<StringConstant*> svalue
 %type<Variable*> variable
 %type<Assignment*> assignment
 %type<Vector*> vector
@@ -73,13 +74,15 @@ expression: expression-block { $$ = $1;}
           | assignment       { $$ = $1;}
           | function         { $$ = $1;}  
           | lvalue           { $$ = $1;}
+          | svalue           { $$ = $1;}
           | variable         { $$ = $1;}
           | function-call    { $$ = $1;}
           | operation        { $$ = $1;}
           | vector           { $$ = $1;}
 
 lvalue: NUMCONST        {$$ = new Constant($1); }
-      | STRINGCONST     {$$ = new Constant($1); }
+
+svalue: STRINGCONST     {$$ = new StringConstant($1);}
 
 variable: IDENTIFIER {$$ = new Variable($1); }
 
@@ -178,5 +181,7 @@ int main(int argc, char** argv)
     string prefix;
     debug_print_expression(scope.rootExpression,prefix);
     cout << scope.evaluate() << endl;
-    scope.rootExpression->print(cout);
+    string result;
+    scope.rootExpression->print(result);
+    cout << result << endl;
 }
