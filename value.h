@@ -2,8 +2,16 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <sstream>
 using namespace std;
 
+
+inline string double_to_string(double v)
+{
+    ostringstream s;
+    s << v;
+    return s.str();
+}
 struct Value : public vector<double>
 {
     string str;
@@ -39,7 +47,25 @@ struct Value : public vector<double>
 
     string as_string() const { return str; }
 
-    operator string() const { return str; }
+    operator string() const
+    { 
+        if (is_string()) return str;
+        string result;
+        if (is_numeric()) result += double_to_string((*this)[0]);
+        else
+        {
+            result += "(";
+            for (size_t i = 0; i < size(); i++)
+            {
+                result += double_to_string((*this)[i]);
+                if (i < size() - 1) result += ", ";
+            }
+            result += ")";
+        }
+        return result;
+    }
+
+    inline bool is_vector() const { return !is_string() && size() > 1; } 
 };
 
 #define MASTER_OPERATOR(op,op2) \
@@ -80,17 +106,7 @@ inline Value operator ^ (const Value& v,const Value& other)
 
 inline std::ostream& operator<<(std::ostream& os,const Value& v)
 {
-    if (v.is_numeric()) os << v[0];
-    else
-    {
-        os << "(";
-        for (size_t i = 0; i < v.size(); i++)
-        {
-            os << v[i];
-            if (i < v.size() - 1) os << ", ";
-        }
-        os << ")";
-    }
+    os << string(v);
     return os;
 }
 

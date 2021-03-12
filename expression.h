@@ -9,6 +9,7 @@
 
 #define ExpressionType_d(o) \
     o(ex_Constant) \
+    o(ex_StringConstant) \
     o(ex_Variable) \
     o(ex_Assignment) \
     o(ex_Vector) \
@@ -16,6 +17,7 @@
     o(ex_ReturnExpression) \
     o(ex_ExpressionBlock) \
     o(ex_Function) \
+    o(ex_InternalFunction) \
     o(ex_FunctionCall)
 
 #define o(n) n,
@@ -37,6 +39,21 @@ struct Expression
     ExpressionType getType() const {return type; }
 
     virtual Value evaluate() = 0;
+
+    bool is_final() const 
+    {
+        for(Expression* expr: dependencies) if (!expr->is_final()) return false;
+
+        switch  (type)
+        {
+            case ex_Assignment:
+            return false;
+            default: 
+            return true;
+        }
+    }
+
+    virtual void print(std::string& str) { }
     private:
     ExpressionType type;
 

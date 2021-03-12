@@ -1,8 +1,12 @@
 {
+    delta = 0.0001; 
     derivate = (f,x) { 
-        delta = 0.0001; 
-        return ( f(x + delta / 2) - f(x - delta / 2) ) / delta 
+
+        ( f(x + delta / 2) - f(x - delta / 2) ) / delta 
     };
 
-    derivate((z){ z * z + z * 2 },2)
+    derivate((z){ z * z + z * 2 },2);
+
+    pepe = 23.123 / (893.3 + 23.0);
+    sin((3.2,0.3,9.2,9.0));
 }

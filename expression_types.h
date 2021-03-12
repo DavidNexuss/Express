@@ -2,7 +2,7 @@
 #include <global.h>
 #include <expression.h>
 #include <expression_util.h>
-
+#include <sstream>
 struct Constant : public Expression
 {
     Value v;
@@ -14,20 +14,67 @@ struct Constant : public Expression
     }
 
     virtual Value evaluate() override { return v; }
+    virtual void print(std::string &str)
+    {
+        str += v;
+    }
+};
+
+struct StringConstant : public Expression
+{
+    Value str;
+    Value finalStr;
+
+    StringConstant(const Value& _str)
+    {
+        setType(ex_StringConstant);
+        str = _str;
+    }
+
+    const std::string evalString()
+    {
+        std::stringstream ss(str);
+        std::string token;
+        std::string result = "";
+        while (ss >> token)
+        {
+            if (token[0] == '$')
+            {
+                token.erase(0,1);
+                Scope::scope->resolve(token)->print(result);
+            }
+            else
+            result += token + " ";
+        }
+        return result;
+    }
+    virtual Value evaluate() override { finalStr.str = evalString(); return finalStr; }
+    virtual void print(std::string &str)
+    {
+        str += finalStr;
+    }
 };
 struct Variable : public Expression
 {
     string name;
+    bool represents_vector;
 
     Variable(const string& _name)
     { 
         setType(ex_Variable);
         name = _name; 
+        represents_vector = false;
     }
 
     Expression* get() { return Scope::scope->resolve(name); }
     virtual Value evaluate() override { return get()->evaluate(); } 
 
+    virtual void print(std::string& str)
+    {
+        if (represents_vector) str += "\\vec{";
+        str += name;
+        if (represents_vector) str += "}";
+    }
 };
 struct Assignment : public Expression 
 {
@@ -41,11 +88,27 @@ struct Assignment : public Expression
         assignment = _assignment;
         dependency(identifier);
         dependency(assignment);
+        if (assignment->getType() == ex_Vector) identifier->represents_vector = true;
     }
 
     virtual Value evaluate() override { 
         Expression* expr = Scope::scope->define(identifier->name,assignment); 
         return expr->evaluate();
+    }
+
+    virtual void print(std::string& str)
+    {
+        if (assignment->getType() != ex_Function)
+        {
+            identifier->print(str);
+            str += " = ";
+            assignment->print(str);
+        }
+        else
+        {
+            identifier->print(str);
+            assignment->print(str);
+        }
     }
 };
 
@@ -57,12 +120,12 @@ struct Vector : public Expression
 
     virtual Value evaluate() override
     {
-        vector<double> values(variables.size());
-        for (size_t i = 0; i < variables.size(); i++)
+        Value values = variables[0]->evaluate()[0];
+        for (size_t i = 1; i < variables.size(); i++)
         {
-            values[i] = variables[i]->evaluate()[0];
+            values.push_back(variables[i]->evaluate()[0]);
         }
-        return Value(values);
+        return values;
     }
 
     inline Expression* at(size_t index) { return variables[index]; }
@@ -73,7 +136,17 @@ struct Vector : public Expression
     { 
         variables.emplace_back(expression); 
         dependency(expression);
-    } 
+    }
+    virtual void print(std::string &str)
+    {
+        str += "(";
+        for (size_t i = 0 ; i < variables.size(); i++)
+        {
+            variables[i]->print(str);
+            if (i != variables.size() - 1) str += ",";
+        }
+        str += ")";
+    }
 };
 
 #define OPERATION_TYPE_ENUM(o) \
@@ -123,6 +196,27 @@ struct Operation : public Expression
 
         throw new std::runtime_error("Invalid operation type");
     }
+
+    virtual void print(std::string& str)
+    {
+        if (op_type == op_div) str += "\\frac{";
+        a->print(str);
+        if (op_type == op_div) str += "}";
+        switch(op_type)
+        {
+            case op_sum: str += " + "; break;
+            case op_sub: str += " - "; break;
+            case op_mul: str += " \\cdot "; break;
+            case op_exp: str += " ^ "; break;
+            case op_ref: str += "["; break;
+        }
+        
+        if (op_type == op_div) str += "{";
+        b->print(str);
+        if (op_type == op_div) str += "}";
+
+        if (op_type == op_ref) str += "]";
+    }
 };
 
 struct ReturnExpression : public Expression
@@ -135,6 +229,11 @@ struct ReturnExpression : public Expression
     }
 
     virtual Value evaluate() override { return returnValue->evaluate(); }
+    virtual void print(std::string & str)
+    {
+        str += "return ";
+        returnValue->print(str);
+    }
 };
 
 struct ExpressionBlock : public Expression
@@ -184,6 +283,15 @@ struct ExpressionBlock : public Expression
         expressions.emplace_back(expression);
         dependency(expression);
     }
+
+    virtual void print(std::string & str)
+    {
+        for(Expression* expression : expressions)
+        {
+            expression->print(str);
+            if (expression != expressions.back()) str += "\n";
+        }
+    }
 };
 
 struct Function : public Expression
@@ -191,20 +299,32 @@ struct Function : public Expression
     Vector* parameterVector;
     ExpressionBlock* expressionBlock;
 
+    Function()
+    {
+        setType(ex_Function);
+    }
     Function(Vector* _parameterVector,ExpressionBlock* _expressionBlock) : parameterVector(_parameterVector), expressionBlock(_expressionBlock)
     { 
         setType(ex_Function);
+
         dependency(parameterVector);
         dependency(expressionBlock);
-
         expressionBlock->expectsParameters = true;
     }
 
     virtual Value evaluate() override { return 0; }
-    Value evaluate(Vector* valueVector)
+
+    virtual Value evaluate(Vector* valueVector)
     {
         expressionBlock->set_variable_vectors(parameterVector,valueVector);
         return expressionBlock->evaluate();
+    }
+
+    virtual void print(std::string & str)
+    {
+        parameterVector->print(str);
+        str += " = ";
+        expressionBlock->print(str);
     }
 };
 
@@ -224,4 +344,45 @@ struct FunctionCall : public Expression
         Function* function = static_cast<Function*>(functionIdentifier->get());
         return function->evaluate(valueVector);
     }
+    virtual void print(std::string & str)
+    {
+        functionIdentifier->print(str);
+        valueVector->print(str);
+    }
 };
+//This should be more efficient 
+struct InternalFunction : public Function
+{
+    using internalFunction = double (*) (double);
+
+    std::string name;
+    internalFunction functionPtr;
+
+    InternalFunction(const std::string& _name,internalFunction _functionPtr) : name(_name)
+    {
+        functionPtr = _functionPtr;
+        setType(ex_InternalFunction);
+    }
+    virtual Value evaluate() override { return 0; }
+
+    virtual Value evaluate(Vector* valueVector) override
+    {
+        Value oldvalue = valueVector->at(0)->evaluate();
+        Value result = oldvalue;
+
+        for(int i = 0 ; i < oldvalue.size(); ++i)
+        {
+            result[i] = functionPtr(oldvalue[i]);
+        }
+        return result;
+    }
+
+
+    static void registerInternalFunction(const std::string& name, internalFunction functionPtr)
+    {
+        Scope::scope->define(name,new InternalFunction(name,functionPtr));
+    }
+};
+
+#define registerInternalFunction(x) InternalFunction::registerInternalFunction(#x,x);
+#define registerInternalConstant(x) Scope::scope->define(#x,new Constant(x));
