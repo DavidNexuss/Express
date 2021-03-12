@@ -8,5 +8,4 @@ void registerInternalFunctions()
 {
     internalFunctions(registerInternalFunction);
     internalConstants(registerInternalConstant);
-    Value v(INFINITY);
 }
