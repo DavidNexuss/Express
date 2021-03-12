@@ -120,12 +120,17 @@ struct Vector : public Expression
 
     virtual Value evaluate() override
     {
-        Value values = variables[0]->evaluate()[0];
-        for (size_t i = 1; i < variables.size(); i++)
+        if (variables.size() != 1)
         {
-            values.push_back(variables[i]->evaluate()[0]);
+            Value values = variables[0]->evaluate()[0];
+            for (size_t i = 1; i < variables.size(); i++)
+            {
+                values.push_back(variables[i]->evaluate()[0]);
+            }
+            return values;
         }
-        return values;
+
+        return variables[0]->evaluate();
     }
 
     inline Expression* at(size_t index) { return variables[index]; }
