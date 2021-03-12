@@ -14,23 +14,29 @@ all: build dist/expr dist/expr.a
 build:
 	mkdir -p build dist
 
-OBJECTS= build/expr.o build/expression_util.o build/scope.o build/register_types.o
+OBJECTS= build/expression_util.o build/scope.o build/register_types.o
 
-dist/expr: $(OBJECTS)
+dist/expr: $(OBJECTS) build/expr_main.o
 	g++ $(CFLAGS) $^ -std=c++17 -I . -o $@
 
-dist/expr.a: $(OBJECTS)
+dist/expr.a: $(OBJECTS) build/expr.o
 	ar rvs $@ $^
 
-build/expr.cc: build/expr.cc.re
+build/expr_main.cc.re: expr.y expression.h
+	cat expr.y expr_main.y | bison -Wcounterexamples /dev/stdin -o $@
+build/expr_main.cc: build/expr_main.cc.re
 	re2c $^ -o $@
-build/expr.cc.re: expr.y expression.h
-	bison -Wcounterexamples expr.y -o $@
-
-build/%.o : %.cc
+build/expr_main.o: build/expr_main.cc
 	g++ $(CFLAGS) $^ -std=c++17 -I . -c -o $@
 
+build/expr.cc.re: expr.y expression.h
+	bison -Wcounterexamples expr.y -o $@
+build/expr.cc: build/expr.cc.re
+	re2c $^ -o $@
 build/expr.o: build/expr.cc
+	g++ $(CFLAGS) $^ -std=c++17 -I . -c -o $@
+
+build/%.o : %.cc
 	g++ $(CFLAGS) $^ -std=c++17 -I . -c -o $@
 
 clean:
