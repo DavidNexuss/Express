@@ -64,6 +64,8 @@ struct Value : public vector<double>
         }
         return result;
     }
+
+    inline bool is_vector() const { return !is_string() && size() > 1; } 
 };
 
 #define MASTER_OPERATOR(op,op2) \

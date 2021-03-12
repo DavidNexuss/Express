@@ -57,11 +57,13 @@ struct StringConstant : public Expression
 struct Variable : public Expression
 {
     string name;
+    bool represents_vector;
 
     Variable(const string& _name)
     { 
         setType(ex_Variable);
         name = _name; 
+        represents_vector = false;
     }
 
     Expression* get() { return Scope::scope->resolve(name); }
@@ -69,7 +71,9 @@ struct Variable : public Expression
 
     virtual void print(std::string& str)
     {
+        if (represents_vector) str += "\\vec{";
         str += name;
+        if (represents_vector) str += "}";
     }
 };
 struct Assignment : public Expression 
@@ -84,6 +88,7 @@ struct Assignment : public Expression
         assignment = _assignment;
         dependency(identifier);
         dependency(assignment);
+        if (assignment->getType() == ex_Vector) identifier->represents_vector = true;
     }
 
     virtual Value evaluate() override { 
@@ -95,7 +100,6 @@ struct Assignment : public Expression
     {
         if (assignment->getType() != ex_Function)
         {
-
             identifier->print(str);
             str += " = ";
             assignment->print(str);
