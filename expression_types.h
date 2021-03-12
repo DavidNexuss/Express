@@ -324,6 +324,29 @@ struct Function : public Expression
     }
 };
 
+struct FunctionCall : public Expression
+{
+    Variable* functionIdentifier;
+    Vector* valueVector;
+
+    FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
+    {
+        setType(ex_FunctionCall);
+        dependency(functionIdentifier);
+        dependency(valueVector);
+    }
+    virtual Value evaluate()
+    {
+        Function* function = static_cast<Function*>(functionIdentifier->get());
+        return function->evaluate(valueVector);
+    }
+    virtual void print(std::string & str)
+    {
+        functionIdentifier->print(str);
+        valueVector->print(str);
+    }
+};
+//This should be more efficient 
 struct InternalFunction : public Function
 {
     using internalFunction = double (*) (double);
@@ -358,26 +381,4 @@ struct InternalFunction : public Function
 };
 
 #define registerInternalFunction(x) InternalFunction::registerInternalFunction(#x,x);
-
-struct FunctionCall : public Expression
-{
-    Variable* functionIdentifier;
-    Vector* valueVector;
-
-    FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
-    {
-        setType(ex_FunctionCall);
-        dependency(functionIdentifier);
-        dependency(valueVector);
-    }
-    virtual Value evaluate()
-    {
-        Function* function = static_cast<Function*>(functionIdentifier->get());
-        return function->evaluate(valueVector);
-    }
-    virtual void print(std::string & str)
-    {
-        functionIdentifier->print(str);
-        valueVector->print(str);
-    }
-};
+#define registerInternalConstant(x) Scope::scope->define(#x,new Constant(x));
