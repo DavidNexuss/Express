@@ -14,7 +14,7 @@ void debug_print_expression(Expression* root,const std::string& prefix)
         Expression *c = *it;
         auto it2 = it; ++it2;
 
-        cerr << prefix << (it2 != dependencies.end() ? "\u251c\u2500" : "\u2514\u2500") << "> " << literalType(c) << " ";
+        cerr << prefix << (it2 != dependencies.end() ? "\u251c\u2500" : "\u2514\u2500") << "\u1405 " << literalType(c) << " ";
         switch(c->getType())
         {
             case ex_Constant:
