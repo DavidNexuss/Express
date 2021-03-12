@@ -12,6 +12,7 @@
 #include <expression.h>
 #include <expression_types.h>
 #include <register_types.h>
+#include <express.h>
 struct lexcontext;
 } //%code requires
 
@@ -162,6 +163,8 @@ void yy::conj_parser::error(const location_type& l, const std::string& m)
 }
 
 #include <iostream>
+
+#ifndef LIBRARY
 #include <fstream>
 int main(int argc, char** argv)
 {
@@ -186,4 +189,26 @@ int main(int argc, char** argv)
     string result;
     scope.rootExpression->print(result);
     cout << result << endl;
+}
+
+#endif
+//Initialize scope so it can be reused
+int parse_to_latex(const string& code, string& result)
+{
+    const string filename = "<input>";
+
+    lexcontext ctx;
+    ctx.cursor = code.c_str();
+    ctx.loc.begin.filename = &filename;
+    ctx.loc.end.filename   = &filename;
+
+    Scope scope;
+    Scope::initialize_scope(&scope);
+    registerInternalFunctions();
+
+    yy::conj_parser parser(ctx);
+    parser.parse();
+    
+    scope.rootExpression->print(result);
+    return 0;
 }
