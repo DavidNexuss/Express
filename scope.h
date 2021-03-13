@@ -1,6 +1,6 @@
 #pragma once
-#include <global.h>
-#include <value.h>
+#include "global.h"
+#include "value.h"
 #include <vector>
 #include <map>
 #include <string>

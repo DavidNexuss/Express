@@ -1,7 +1,7 @@
 #pragma once
-#include <global.h>
-#include <expression.h>
-#include <expression_util.h>
+#include "global.h"
+#include "expression.h"
+#include "expression_util.h"
 #include <sstream>
 struct Constant : public Expression
 {

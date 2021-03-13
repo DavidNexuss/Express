@@ -1,5 +1,5 @@
-#include <scope.h>
-#include <expression.h>
+#include "scope.h"
+#include "expression.h"
 Scope::Scope() 
 {
     currentScope = 0; 

@@ -1,6 +1,6 @@
-#include <global.h>
-#include <expression_util.h>
-#include <expression_types.h>
+#include "global.h"
+#include "expression_util.h"
+#include "expression_types.h"
 
 void latexize(Expression* expression)
 {

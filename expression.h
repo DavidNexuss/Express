@@ -1,7 +1,7 @@
 #pragma once
-#include <global.h>
-#include <value.h>
-#include <scope.h>
+#include "global.h"
+#include "value.h"
+#include "scope.h"
 #include <map>
 #include <stack>
 #include <list>

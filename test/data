@@ -1,12 +1,12 @@
 {
     delta = 0.0001; 
-    derivate = (f,x) { 
+    d = (f,x) { 
 
         ( f(x + delta / 2) - f(x - delta / 2) ) / delta 
     };
+    
+    v = (2.3,32.10,542.23,510.0,41.0,1.0);
 
-    derivate((z){ z * z + z * 2 },2);
-
-    pepe = 23.123 / (893.3 + 23.0);
-    sin((3.2,0.3,9.2,9.0));
+    f = d((z) { sin(z) + cos(z) },v);
+    "This is a function call $f"
 }
