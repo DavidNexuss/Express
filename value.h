@@ -110,17 +110,17 @@ inline std::ostream& operator<<(std::ostream& os,const Value& v)
     return os;
 }
 
-inline Value sum(const Value& v)
+inline double vsum(Value v)
 {
-    Value result = v[0];
+    double result = v[0];
     for (size_t i = 1; i < v.size();i++) result += v[i];
 
     return result;
 }
 
-inline Value prod(const Value& v)
+inline double vprod(Value v)
 {
-    Value result = v[0];
+    double result = v[0];
     for (size_t i = 1; i < v.size();i++) result *= v[i];
 
     return result;

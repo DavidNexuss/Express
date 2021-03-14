@@ -361,17 +361,39 @@ struct FunctionCall : public Expression
         valueVector->print(str);
     }
 };
+
+struct internalFunctionPtr
+{
+    using scalarFunctionPtr = double (*) (double);
+    using vectorFunctionPtr = double (*) (Value);
+
+    scalarFunctionPtr scalarFunction;
+    vectorFunctionPtr vectorFunction;
+    
+    bool is_vector = false;
+
+    internalFunctionPtr(const scalarFunctionPtr& _scalarFunction) : scalarFunction(_scalarFunction) { }
+    internalFunctionPtr(const vectorFunctionPtr& _vectorFunction) : vectorFunction(_vectorFunction) { is_vector = true; } 
+
+    double get(double args)
+    {
+        return scalarFunction(args);
+    }
+    double get_vector(Value args)
+    {
+        return vectorFunction(args);
+    }
+};
 //This should be more efficient 
 struct InternalFunction : public Function
 {
-    using internalFunction = double (*) (double);
+    using internalFunction = internalFunctionPtr;
 
     std::string name;
     internalFunction functionPtr;
 
-    InternalFunction(const std::string& _name,internalFunction _functionPtr) : name(_name)
+    InternalFunction(const std::string& _name,internalFunction _functionPtr) : name(_name), functionPtr(_functionPtr)
     {
-        functionPtr = _functionPtr;
         setType(ex_InternalFunction);
     }
     virtual Value i_evaluate() override { return 0; }
@@ -380,10 +402,14 @@ struct InternalFunction : public Function
     {
         Value oldvalue = valueVector->at(0)->evaluate();
         Value result = oldvalue;
-
+    
+        if (functionPtr.is_vector)
+        {
+            return functionPtr.get_vector(result);
+        }
         for(int i = 0 ; i < oldvalue.size(); ++i)
         {
-            result[i] = functionPtr(oldvalue[i]);
+            result[i] = functionPtr.get(oldvalue[i]);
         }
         return result;
     }
