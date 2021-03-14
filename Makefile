@@ -12,8 +12,7 @@ debug: all
 all: build dist/expr dist/expr.a
 
 build:
-	mkdir -p /tmp/expr_build dist
-	ln -s /tmp/expr_build build
+	mkdir -p build dist 
 
 OBJECTS= build/expression_util.o build/scope.o build/register_types.o
 
@@ -41,5 +40,4 @@ build/%.o : %.cc
 	g++ $(CFLAGS) $^ -c -o $@
 
 clean:
-	rm -rf /tmp/expr_build
-	rm build
+	rm -rf build

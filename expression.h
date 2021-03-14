@@ -38,8 +38,16 @@ struct Expression
     void setType(ExpressionType _type) {  type = _type;  }
     ExpressionType getType() const {return type; }
 
-    virtual Value evaluate() = 0;
+    virtual Value i_evaluate() = 0;
 
+    Value lastEvaluatedValue;
+    bool wasEvaluated = false;
+
+    Value evaluate()
+    {
+        wasEvaluated = true;
+        return lastEvaluatedValue = i_evaluate();
+    }
     bool is_final() const 
     {
         for(Expression* expr: dependencies) if (!expr->is_final()) return false;
@@ -47,13 +55,31 @@ struct Expression
         switch  (type)
         {
             case ex_Assignment:
+            case ex_ExpressionBlock:
             return false;
             default: 
             return true;
         }
     }
 
-    virtual void print(std::string& str) { }
+    bool is_const() const
+    {
+        for(Expression* expr: dependencies) if (!expr->is_const()) return false;
+
+        switch (type)
+        {
+            case ex_Constant:
+            case ex_Vector: return true;
+            default: return false;
+        }
+    }
+    virtual void i_print(std::string& str) = 0;
+
+    void print(std::string& str)
+    {
+        if (wasEvaluated) str += lastEvaluatedValue;
+        else i_print(str);
+    }
     private:
     ExpressionType type;
 

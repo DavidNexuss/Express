@@ -18,7 +18,7 @@ int main(int argc, char** argv)
     parser.parse();
     string prefix;
     debug_print_expression(scope.rootExpression,prefix);
-    cout << scope.evaluate() << endl;
+    //cout << scope.evaluate() << endl;
     string result;
     scope.rootExpression->print(result);
     cout << result << endl;
