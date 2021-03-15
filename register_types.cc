@@ -1,7 +1,11 @@
 #include "expression_types.h"
 
+Expression* solve(Vector* v)
+{
+   //Manual interpretation
+}
 #define internalFunctions(o) \
-    o(sin) o(cos) o(tan) o(ceil) o(floor)
+    o(sin) o(cos) o(tan) o(ceil) o(floor) o(solve)
 
 #define internalSpecialFunctions(o) \
     o(vsum,"\\sum{","}") o(vprod,"\\prod{","}") \

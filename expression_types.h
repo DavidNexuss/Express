@@ -348,18 +348,26 @@ struct Function : public Expression
     }
 };
 
+enum internalfunctionType
+{
+    fn_scalar,fn_vector,fn_expression
+};
+
 struct internalFunctionPtr
 {
     using scalarFunctionPtr = double (*) (double);
     using vectorFunctionPtr = double (*) (Value);
+    using expresionFunctionPtr = Expression* (*) (Vector*);
 
     scalarFunctionPtr scalarFunction;
     vectorFunctionPtr vectorFunction;
+    expresionFunctionPtr expresionFunction;
     
-    bool is_vector = false;
+    internalfunctionType type;
 
-    internalFunctionPtr(const scalarFunctionPtr& _scalarFunction) : scalarFunction(_scalarFunction) { }
-    internalFunctionPtr(const vectorFunctionPtr& _vectorFunction) : vectorFunction(_vectorFunction) { is_vector = true; } 
+    internalFunctionPtr(const scalarFunctionPtr& _scalarFunction) : scalarFunction(_scalarFunction) { type = fn_scalar; }
+    internalFunctionPtr(const vectorFunctionPtr& _vectorFunction) : vectorFunction(_vectorFunction) { type = fn_vector; } 
+    internalFunctionPtr(const expresionFunctionPtr& _expresionFunction) : expresionFunction(_expresionFunction) { type = fn_expression; } 
 
     double get(double args)
     {
@@ -369,6 +377,8 @@ struct internalFunctionPtr
     {
         return vectorFunction(args);
     }
+
+    Expression* get_expr(Vector* args) { return expresionFunction(args); }
 };
 //This should be more efficient 
 struct InternalFunction : public Function
@@ -388,24 +398,40 @@ struct InternalFunction : public Function
         setType(ex_InternalFunction);
         is_internal = true;
     }
-    virtual Value i_evaluate() override { return 0; }
+    virtual Value i_evaluate() override 
+    {
+        return 0;
+    }
 
     virtual Value evaluate(Vector* valueVector) override
     {
-        Value oldvalue = valueVector->at(0)->evaluate();
+        Value oldvalue;
+        if (functionPtr.type != fn_expression) oldvalue = valueVector->at(0)->evaluate();
         Value result = oldvalue;
     
-        if (functionPtr.is_vector)
+        switch(functionPtr.type)
         {
-            return functionPtr.get_vector(result);
+            case fn_vector: return functionPtr.get_vector(result);
+            case fn_scalar: 
+            default:
+
+            for(int i = 0 ; i < oldvalue.size(); ++i)
+            {
+                result[i] = functionPtr.get(oldvalue[i]);
+            }
+            return result;
         }
-        for(int i = 0 ; i < oldvalue.size(); ++i)
-        {
-            result[i] = functionPtr.get(oldvalue[i]);
-        }
-        return result;
     }
 
+    void evaluate(Vector* valueVector, Expression* &expression)
+    {
+        expression = functionPtr.get_expr(valueVector);
+    }
+
+    bool is_expression_function()
+    {
+        return functionPtr.type == fn_expression;
+    }
 
     static InternalFunction* registerInternalFunction(const std::string& name, internalFunction functionPtr)
     {
@@ -422,6 +448,8 @@ struct FunctionCall : public Expression
 {
     Variable* functionIdentifier;
     Vector* valueVector;
+    Expression* mutation;
+    bool is_mutated = false;
 
     FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
     {
@@ -431,11 +459,30 @@ struct FunctionCall : public Expression
     }
     virtual Value i_evaluate()
     {
+        if (is_mutated)
+        {
+            return mutation->evaluate();
+        }
         Function* function = static_cast<Function*>(functionIdentifier->get());
+        if (function->is_internal)
+        {
+            InternalFunction* intFunction = static_cast<InternalFunction*>(function);
+            if (intFunction->is_expression_function())
+            {
+                intFunction->evaluate(valueVector,mutation);
+                is_mutated = true;
+                return i_evaluate();
+            }
+        }
         return function->evaluate(valueVector);
     }
     virtual void i_print(std::string & str)
     {
+        if (is_mutated)
+        {
+            mutation->print(str);
+            return;
+        }
         Function* function = static_cast<Function*>(functionIdentifier->get());
         if (function->is_internal)
         {
