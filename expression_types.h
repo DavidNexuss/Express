@@ -149,16 +149,23 @@ struct Vector : public Expression
         variables.emplace_back(expression); 
         dependency(expression);
     }
-    virtual void i_print(std::string &str)
+
+    void print_content(std::string& str)
     {
-        str += "(";
         for (size_t i = 0 ; i < variables.size(); i++)
         {
             variables[i]->print(str);
             if (i != variables.size() - 1) str += ",";
         }
+
+    }
+    virtual void i_print(std::string &str)
+    {
+        str += "(";
+        print_content(str);
         str += ")";
     }
+
 };
 
 #define OPERATION_TYPE_ENUM(o) \
@@ -223,9 +230,9 @@ struct Operation : public Expression
             case op_ref: str += "["; break;
         }
         
-        if (op_type == op_div) str += "{";
+        if (op_type == op_div || op_type == op_exp) str += "{";
         b->print(str);
-        if (op_type == op_div) str += "}";
+        if (op_type == op_div || op_type == op_exp) str += "}";
 
         if (op_type == op_ref) str += "]";
     }
@@ -309,6 +316,8 @@ struct Function : public Expression
 {
     Vector* parameterVector;
     ExpressionBlock* expressionBlock;
+    
+    bool is_internal = false;
 
     Function()
     {
@@ -339,29 +348,6 @@ struct Function : public Expression
     }
 };
 
-struct FunctionCall : public Expression
-{
-    Variable* functionIdentifier;
-    Vector* valueVector;
-
-    FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
-    {
-        setType(ex_FunctionCall);
-        dependency(functionIdentifier);
-        dependency(valueVector);
-    }
-    virtual Value i_evaluate()
-    {
-        Function* function = static_cast<Function*>(functionIdentifier->get());
-        return function->evaluate(valueVector);
-    }
-    virtual void i_print(std::string & str)
-    {
-        functionIdentifier->print(str);
-        valueVector->print(str);
-    }
-};
-
 struct internalFunctionPtr
 {
     using scalarFunctionPtr = double (*) (double);
@@ -388,13 +374,19 @@ struct internalFunctionPtr
 struct InternalFunction : public Function
 {
     using internalFunction = internalFunctionPtr;
-
+    
     std::string name;
+    std::string prefix;
+    std::string suffix;
+    
+    bool use_special_prefix = false;
+
     internalFunction functionPtr;
 
     InternalFunction(const std::string& _name,internalFunction _functionPtr) : name(_name), functionPtr(_functionPtr)
     {
         setType(ex_InternalFunction);
+        is_internal = true;
     }
     virtual Value i_evaluate() override { return 0; }
 
@@ -415,11 +407,53 @@ struct InternalFunction : public Function
     }
 
 
-    static void registerInternalFunction(const std::string& name, internalFunction functionPtr)
+    static InternalFunction* registerInternalFunction(const std::string& name, internalFunction functionPtr)
     {
-        Scope::scope->define(name,new InternalFunction(name,functionPtr));
+        return static_cast<InternalFunction*>(Scope::scope->define(name,new InternalFunction(name,functionPtr)));
+    }
+
+    void set_prefixes(const std::string& _prefix,const std::string& _suffix)
+    {
+        prefix = _prefix; suffix = _suffix;
+        use_special_prefix = true;
+    }
+};
+struct FunctionCall : public Expression
+{
+    Variable* functionIdentifier;
+    Vector* valueVector;
+
+    FunctionCall(Variable* _functionIdentifier,Vector* _valueVector) : functionIdentifier(_functionIdentifier), valueVector(_valueVector) 
+    {
+        setType(ex_FunctionCall);
+        dependency(functionIdentifier);
+        dependency(valueVector);
+    }
+    virtual Value i_evaluate()
+    {
+        Function* function = static_cast<Function*>(functionIdentifier->get());
+        return function->evaluate(valueVector);
+    }
+    virtual void i_print(std::string & str)
+    {
+        Function* function = static_cast<Function*>(functionIdentifier->get());
+        if (function->is_internal)
+        {
+            InternalFunction* internal = static_cast<InternalFunction*>(function);
+            if (internal->use_special_prefix)
+            {
+                str += internal->prefix;
+                valueVector->print_content(str);
+                str += internal->suffix;
+                return;
+            }
+        }
+        functionIdentifier->print(str);
+        valueVector->print(str);
     }
 };
 
-#define registerInternalFunction(x) InternalFunction::registerInternalFunction(#x,x);
-#define registerInternalConstant(x) Scope::scope->define(#x,new Constant(x));
+
+#define m_registerInternalFunction(x) InternalFunction::registerInternalFunction(#x,x);
+#define m_registerInternalSpecialFunction(x,prefix,suffix) { auto* e = InternalFunction::registerInternalFunction(#x,x); e->set_prefixes(prefix,suffix); }
+#define m_registerInternalConstant(x) Scope::scope->define(#x,new Constant(x));
